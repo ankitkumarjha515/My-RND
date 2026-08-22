@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>REACH-OUT — Blacksite FPS</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#0b0e13}
+  #game canvas{display:block}
+  #err{position:fixed;left:12px;right:12px;top:12px;z-index:99;display:none;padding:10px 14px;border-radius:6px;
+       background:#3a0d12;color:#ffd7d7;font:13px/1.5 Consolas,monospace;white-space:pre-wrap;border:1px solid #a33}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<pre id="err"></pre>
+
+<script>
+window.GAME = { _updates: [] };
+window.addEventListener('error', function (e) {
+  var el = document.getElementById('err');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent += '[error] ' + e.message + ' @ ' + (e.filename || '') + ':' + (e.lineno || '') + '\n';
+});
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"
+        onerror="var s=document.createElement('script');s.src='https://unpkg.com/three@0.152.2/build/three.min.js';document.head.appendChild(s);"></script>
+<script>
+if (!window.THREE) {
+  document.getElementById('err').style.display = 'block';
+  document.getElementById('err').textContent = 'THREE.js failed to load — check your internet connection and reload.';
+  throw new Error('THREE missing');
+}
+</script>
+
+<script src="modules/core.js"></script>
+<script>
+window.GAME.scene = window.GAME.core.scene;
+window.GAME.renderer = window.GAME.core.renderer;
+</script>
+<script src="modules/arena.js"></script>
+<script src="modules/ui.js"></script>
+<script src="modules/audio.js"></script>
+<script src="modules/fx.js"></script>
+<script src="modules/player.js"></script>
+<script src="modules/ballistics.js"></script>
+<script src="modules/weapons.js"></script>
+<script src="modules/enemies.js"></script>
+<script src="modules/director.js"></script>
+</body>
+</html>
