@@ -17,6 +17,7 @@
 #hm span:nth-child(4){right:0;bottom:0;width:10px;height:2px}
 #hm.killed span{background:#ff4040}
 #vig{position:absolute;inset:0;box-shadow:inset 0 0 140px 60px rgba(200,10,10,.85);opacity:0;transition:opacity .35s}
+#cine{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 52%,rgba(4,7,11,.52) 100%)}
 #hpwrap{position:absolute;left:26px;bottom:26px}
 #hplabel{font-size:11px;letter-spacing:.28em;color:#9aa3b2;margin-bottom:6px}
 #hpbar{width:230px;height:14px;background:rgba(10,14,20,.72);border:1px solid rgba(255,255,255,.16);border-radius:3px;overflow:hidden}
@@ -52,6 +53,7 @@
   const hud = document.createElement('div');
   hud.id = 'hud';
   hud.innerHTML = [
+    '<div id="cine"></div>',
     '<div id="vig"></div>',
     '<div id="xh"></div>',
     '<div id="hm"><span></span><span></span><span></span><span></span></div>',

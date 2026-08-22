@@ -188,6 +188,7 @@
   }, { passive: true });
 
   C.registerUpdate((dt) => {
+    camera.rotation.x = pitch;
     const st = C.state;
     if (!st.playing || P.dead) return;
 

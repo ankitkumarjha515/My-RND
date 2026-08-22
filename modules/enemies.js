@@ -27,12 +27,14 @@ function buildBot(t) {
   const mat = new THREE.MeshStandardMaterial({ color: t.body, roughness: 0.6, metalness: 0.3 });
   const vmat = new THREE.MeshStandardMaterial({ color: t.visor, emissive: new THREE.Color(t.visor), emissiveIntensity: 0.9, roughness: 0.4, metalness: 0.2 });
   const legGeo = new THREE.BoxGeometry(0.16, 0.5, 0.16);
+  const legs = [];
   for (let s = -1; s <= 1; s += 2) {
     const leg = new THREE.Mesh(legGeo, mat);
     leg.position.set(s * 0.12, 0.25, 0);
     leg.castShadow = true;
     leg.userData.part = 'body';
     g.add(leg);
+    legs.push(leg);
   }
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.55, 6, 12), mat);
   torso.position.y = 0.95;
@@ -65,7 +67,7 @@ function buildBot(t) {
   g.add(muzzle);
   g.scale.setScalar(t.scale);
   g.scale.y = 0.001;
-  return { g, mat, vmat, head, muzzle };
+  return { g, mat, vmat, head, muzzle, legs };
 }
 
 function spawn(typeName) {
@@ -101,7 +103,9 @@ function spawn(typeName) {
     mat: parts.mat,
     vmat: parts.vmat,
     head: parts.head,
-    muzzle: parts.muzzle
+    muzzle: parts.muzzle,
+    legs: parts.legs,
+    walk: Math.random() * 10
   };
   g.userData.enemyRef = e;
   list.push(e);
@@ -281,6 +285,13 @@ function update() {
       collideCircle(gp, 0.45);
       gp.x = clamp(gp.x, -76, 76);
       gp.z = clamp(gp.z, -76, 76);
+      e.walk += dt * e.speed * 2.6;
+      const sw = Math.sin(e.walk) * .5;
+      if (e.legs[0]) e.legs[0].rotation.x = sw;
+      if (e.legs[1]) e.legs[1].rotation.x = -sw;
+      gp.y = Math.abs(Math.sin(e.walk)) * .055;
+    } else if (gp.y !== 0) {
+      gp.y = Math.max(0, gp.y - dt * .3);
     }
     if (dist < 28) attackCheck(e, dist, time, wave);
   }
