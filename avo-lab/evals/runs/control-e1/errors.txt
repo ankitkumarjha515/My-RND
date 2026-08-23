@@ -1,0 +1,31 @@
+2026-08-21T08:00:14Z ERROR auth failed user=33
+2026-08-21T08:00:28Z ERROR db connection lost attempt=734
+2026-08-21T08:01:12Z ERROR unhandled exception type=Timeout order=827
+2026-08-21T08:01:33Z ERROR db connection lost attempt=722
+2026-08-21T08:02:14Z ERROR db connection lost attempt=168
+2026-08-21T08:03:03Z ERROR write failed shard=270
+2026-08-21T08:03:12Z ERROR auth failed user=371
+2026-08-21T08:03:46Z ERROR payment declined order=697
+2026-08-21T08:03:51Z ERROR unhandled exception type=Timeout order=788
+2026-08-21T08:04:14Z ERROR db connection lost attempt=520
+2026-08-21T08:04:34Z ERROR write failed shard=941
+2026-08-21T08:04:40Z ERROR unhandled exception type=Timeout order=501
+2026-08-21T08:05:08Z ERROR db connection lost attempt=132
+2026-08-21T08:05:18Z ERROR db connection lost attempt=272
+2026-08-21T08:05:58Z ERROR db connection lost attempt=8
+2026-08-21T08:06:26Z ERROR write failed shard=485
+2026-08-21T08:07:08Z ERROR auth failed user=144
+2026-08-21T08:08:34Z ERROR write failed shard=162
+2026-08-21T08:08:38Z ERROR payment declined order=872
+2026-08-21T08:09:00Z ERROR write failed shard=41
+2026-08-21T08:10:11Z ERROR write failed shard=9
+2026-08-21T08:11:08Z ERROR auth failed user=575
+2026-08-21T08:11:20Z ERROR payment declined order=855
+2026-08-21T08:11:28Z ERROR write failed shard=152
+2026-08-21T08:11:57Z ERROR db connection lost attempt=948
+2026-08-21T08:13:07Z ERROR unhandled exception type=Timeout order=962
+2026-08-21T08:13:55Z ERROR unhandled exception type=Timeout order=680
+2026-08-21T08:14:16Z ERROR db connection lost attempt=197
+2026-08-21T08:14:45Z ERROR write failed shard=671
+2026-08-21T08:14:57Z ERROR auth failed user=813
+2026-08-21T08:16:16Z ERROR write failed shard=610

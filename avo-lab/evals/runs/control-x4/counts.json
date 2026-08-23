@@ -1,0 +1,7 @@
+{
+  "chars_no_newlines": 12923,
+  "q_not_followed_by_u": 384,
+  "words_with_doubled_letters": 170,
+  "lines_with_digits": 175,
+  "integer_tokens_sum_mod": 125819
+}
