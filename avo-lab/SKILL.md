@@ -1,94 +1,95 @@
-# AVO Loop (v1) — Long-Horizon Execution Discipline
+# AVO Loop (v2) — Long-Horizon Execution Discipline
 
-Derived from NVIDIA's Agentic Variation Operators (AVO). Core finding: the
-harness around a model, not the model alone, converts capability into results.
-Follow this loop mechanically. It is designed to be checkable, not aspirational.
+Derived from NVIDIA's Agentic Variation Operators: Agent(P, K, f) — lineage,
+knowledge, evaluator. v2 adds what field testing (ARC-AGI-3 ls20, 3 sessions)
+showed v1 lacked: lethal-assumption audits, resource accounting, evidence-tagged
+knowledge, and mandatory session handoffs.
 
 **Principle:** every non-trivial task is evolutionary search over candidates.
-A candidate that was never scored by real execution does not exist.
-Failures are data. Memory lives on disk.
+A candidate never scored by real execution does not exist. Failures are data.
+Memory lives on disk. Assumptions that can kill you get tested first.
 
-## 0 — State directory (your persistent memory)
+## 0 — State directory (persistent memory)
 
 Create `avo/` in the task root before anything else:
 
-- `avo/LINEAGE.md` — append-only candidate ledger (format below)
-- `avo/NOTES.md` — knowledge base: verified interface contracts, file paths,
-  environment facts, gotchas. Only record what you verified. Mark anything
-  unverified as `UNVERIFIED:`.
+- `avo/LINEAGE.md` — append-only experiment ledger, one row per experiment:
+  `| # | hypothesis | exact actions/changes taken | observed result | verdict | lesson |`
+  Record action sequences EXACTLY (replayable), never summarized.
+- `avo/NOTES.md` — knowledge base. Every fact carries an evidence tag:
+  `[verified: how]`, `[assumed]`, `[REFUTED: what replaced it]`.
+  Never delete refuted facts — mark them; wrong beliefs recur otherwise.
 
-Rules: read `LINEAGE.md` before every candidate; write to it after every
-evaluation; update `NOTES.md` the moment you learn a fact. Your context can be
-compacted at any time; disk state survives.
-
-Ledger row format (one row per candidate, appended in order):
-
-```
-| # | hypothesis | change made | eval cmd + real result | verdict | lesson |
-```
-
-`verdict` is COMMIT (new best score, or correctness restored) or REJECT.
+Read both before deciding; write immediately after observing.
 
 ## 1 — Ground (inspect context)
 
-- Restate the goal in ≤3 lines. List explicitly what is NOT asked.
-- Inventory what exists: relevant files, entry points, tests, configs.
-- Unfamiliar environment with no instructions? Probe cheaply first: prefer the
-  smallest safe action that reveals the most information. Record findings in
-  NOTES.md before acting further.
+- Restate the goal in ≤3 lines; list what is NOT asked.
+- Inventory: relevant files/features; the evaluator; **the resource economy** —
+  anything scarce, decaying, or irreplaceable (lives, energy, time, money,
+  budget). Record measured costs, not guessed ones, and update constants the
+  moment observation contradicts them.
+- Record what is PERMANENT vs RESETTABLE in this environment.
 
 ## 2 — Evaluator first (f)
 
-- Identify the command(s) that objectively decide success: test suite, checker
-  script, compiler, benchmark. These are f.
-- If none exists, WRITE f BEFORE writing the solution. f must print a score or
-  pass/fail derived from execution.
-- Run f on the untouched starting state and record it as candidate #0 baseline.
-- Never grade your own work by reading it. Scores come from executed commands,
-  output pasted verbatim into the ledger. An unexecuted claim is invalid.
+- Identify the command(s)/signals that objectively decide progress.
+- Run f on the untouched starting state; record candidate #0 baseline.
+- Scores come only from executed runs, pasted verbatim. Never self-grade.
 
-## 3 — Candidate loop (the variation operator)
+## 2.5 — Lethal-assumption audit (before committing resources)
 
-Each candidate is:
+List assumptions whose failure is EXPENSIVE or IRREVERSIBLE (death, permanent
+loss, dead ends, wasted budgets). For each: design the CHEAPEST probe that
+tests it, and run those probes BEFORE building plans on top of the assumption.
+An assumption that would cost a life if wrong is worth one early action to
+test. Re-audit whenever you are about to do something unrecoverable.
 
-1. **Hypothesis** (one sentence): "Current state scores S / fails because X;
-   changing Y should give ≥ S / restore correctness."
-2. **ONE conceptual change per candidate.** One strategy, not five tweaks —
-   otherwise score deltas are unattributable.
-3. Implement minimally; match surrounding code style.
-4. Run f. Paste the real output into the ledger row.
-5. Verdict COMMIT/REJECT. On REJECT, write one-line lesson ("what this rules out").
+## 3 — Experiment loop (the variation operator)
 
-## 4 — Diagnose before retry (repair budget)
+Each experiment:
+1. **Hypothesis** — one sentence, falsifiable: "doing X will produce Y."
+   State what observation would REFUTE it.
+2. **ONE conceptual change** per experiment — attribution requires isolation.
+3. Execute with EXACT sequences recorded.
+4. Observe f. Paste real output into the ledger.
+5. Verdict KEEP/REJECT + one-line lesson. A clean refutation is a WIN —
+   it converts a unknown into a known. Extract the next question it raises.
 
-Classify every failure before writing more code:
+## 4 — Diagnose before retry
 
-- **(a) Implementation bug** — right hypothesis, wrong code. Repair the same
-  hypothesis. Maximum 2 repairs; beyond that treat as (b).
-- **(b) Wrong hypothesis** — the idea itself fails. Abandon that direction.
-  The next candidate MUST come from a different strategy family, chosen using
-  ledger evidence (which families were tried, what each ruled out).
+- (a) Execution slip (right idea, wrong execution) → repair same hypothesis,
+  max 2 retries, then treat as (b).
+- (b) Wrong hypothesis → abandon the direction; the next experiment MUST come
+  from a different mechanic family, chosen from ledger evidence.
+- (c) Wrong ASSUMPTION behind the failure → add it to the 2.5 audit list and
+  probe it. Never resubmit a rejected hypothesis unchanged; never bundle
+  multiple new ideas into one rescue attempt.
 
-Never resubmit a rejected hypothesis unchanged. Never bundle multiple new ideas
-into one rescue attempt.
+## 5 — Supervisor checkpoints (conditional intervention)
 
-## 5 — Self-supervision (stall detection)
+Run this audit every 5 experiments OR after any surprise:
+1. Stall? (3 consecutive REJECTs ⇒ stop, re-read the goal, list 2 untried
+   approach families, pick one.)
+2. Stale? Which load-bearing fact in NOTES.md is most likely wrong? Cheaply
+   re-verify the one your current plan depends on.
+3. Riskiest untested assumption right now? Probe it or route around it.
+4. Budget: % spent vs % of plan completed — replan if badly off.
+Circuit breaker: budget nearly spent ⇒ finish/verify in-progress work, then
+stop. Never thrash past the breaker.
 
-- **3 consecutive REJECTs ⇒ STOP coding.** Re-read the original task. List your
-  standing assumptions. Write down 2 alternative approach families you have NOT
-  tried. Pick the one best supported by evidence so far. Resume there.
-- **Budget/circuit breaker:** if the agreed attempt/time budget is spent, or 6
-  total candidates have been REJECTed, STOP. Report honestly: best achieved
-  score, winning candidate #, rejected directions + why each died, concrete
-  recommended next step. Do not thrash past the breaker.
+## 6 — Session end protocol (handoff)
 
-## 6 — Done means
+Before stopping — budget spent, done, or interrupted — write
+`avo/HANDOFF.md`:
+- current state (where you are, what's in progress, resources remaining)
+- the single next decisive experiment, with its exact planned sequence
+- open questions ranked by value
+The next session (possibly you with empty context) resumes from HANDOFF.md.
 
-- f executed green, real output pasted verbatim in ledger and summary
-- LINEAGE.md complete for every candidate tried
-- NOTES.md consistent with final state
-- Final summary states: final score, winning candidate #, and rejected
-  directions worth remembering.
+## 7 — Done means
 
-If any item is missing, you are not done — say what remains instead of
-claiming completion.
+f executed green with real output pasted · LINEAGE complete · NOTES evidence-
+tagged · HANDOFF.md current · final summary states final score/state, winning
+approach, and rejected directions worth remembering. Missing any item ⇒
+you are not done — say what remains.

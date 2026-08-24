@@ -1,0 +1,4 @@
+(no grid)
+step=114 state=GameState.GAME_OVER levels=0/0
+human_baseline_actions_per_level=[22, 123, 73, 84, 96, 192, 186]
+available_actions=['1', '2', '3', '4']
