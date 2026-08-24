@@ -1,0 +1,40 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# --- avo-lab: heavy third-party & environments (do not push) ---
+avo-lab/vendor/
+**/environment_files/
+recordings/
+
+# --- avo-lab: per-run session artifacts (reproducible, not source) ---
+avo-lab/evals/runs/
+
+# --- game session state files (anywhere) ---
+arc_env.pkl
+arc_meta.json
+arc_log.jsonl
+arc_session.json
+cmd.txt
+resp.txt
+ready.txt
+game.pkl
+modreg.json
+
+# --- secrets ---
+.env
+.env.*
+*.key
+
+# --- OS junk ---
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# --- editor ---
+.vscode/
+.idea/

@@ -1,7 +1,0 @@
-INFO:arc_agi.scorecard:Initialized ScorecardManager with idle_for=0:15:00 and max_open_for=3 days, 0:00:00
-2026-08-24 16:02:08 | INFO | Got anonymous API key: 96db7167-b52e-4b18-8aef-bd7047e862e3
-2026-08-24 16:02:08 | INFO | You can register for an API key at https://three.arcprize.org
-2026-08-24 16:02:10 | INFO | Successfully fetched 25 environment(s) from API
-2026-08-24 16:02:10 | INFO | Created new scorecard: 40b5d161-d9ea-40b6-a3f2-eaed92426517
-2026-08-24 16:02:12 | INFO | Successfully fetched metadata for game ls20
-2026-08-24 16:02:12 | INFO | Successfully loaded game class Ls20 from environment_files\ls20\9607627b\ls20.py
