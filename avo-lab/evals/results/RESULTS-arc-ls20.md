@@ -74,3 +74,25 @@ per-session budgets walled level 2 for both arms. Convergence: by session 3
 control had organically adopted notes + tools, narrowing the process gap.
 The skill's durable advantages: immediate structure (sessions 1-2), exact
 plan execution from memory, disciplined hypothesis refutation.
+
+## REMATCH (SKILL v2, 150-action sessions) - final
+
+| Arm | Worlds consumed | Actions | Levels | Status |
+|---|---|---|---|---|
+| Control (no skill) | 2 (both permadead) | ~328 | **1/7** | GAME_OVER |
+| Treatment (AVO v2) | 1 (alive) | ~390 | **4/7** | holding verified routes to L5 |
+
+Treatment session 3 (cold start): all banked routes (13/45/39/43 acts)
+replayed act-for-act identical across a third fresh server - zero errors,
+zero deaths, 4/7 at step 140. Agent audited the ORCHESTRATOR's briefing
+(caught a stale bootstrap claim via fuel-bar reconciliation, saved 13
+actions; corrected a route-length mixup) and stopped at the exactly optimal
+point rather than risking lives on an unreachable level.
+
+Human baseline for the full game: 676 actions. Treatment: 4/7 in ~390.
+
+Mechanism of victory, per the AVO thesis: evaluator-first (offline BFS
+solver built against the game's own shipped source), lineage (verbatim
+replayable routes), supervisor discipline (circuit breakers, lethal-
+assumption audit caught the -2 fuel trap that killed v1), and memory that
+compounded across three cold sessions.
