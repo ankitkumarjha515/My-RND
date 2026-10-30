@@ -17,10 +17,13 @@ object LocalServer {
         }
     }.getOrDefault(false)
 
-    /** Waits for the server, then returns a single-use sign-in link for the WebView. */
-    fun waitAndPair(password: String, timeoutMs: Long, failed: () -> Boolean): String {
+    /**
+     * Waits until [ready] confirms the listener is our own server, then returns a single-use sign-in link for the
+     * WebView. The password is never sent before that, so an app squatting on the port cannot collect it.
+     */
+    fun waitAndPair(password: () -> String?, timeoutMs: Long, ready: () -> Boolean, failed: () -> Boolean): Pair<String, String> {
         val deadline = System.currentTimeMillis() + timeoutMs
-        while (!healthy()) {
+        while (!(ready() && healthy())) {
             if (failed()) throw IllegalStateException("OpenCode server keeps crashing.")
             if (System.currentTimeMillis() > deadline) throw IllegalStateException("OpenCode server did not start within ${timeoutMs / 1000}s.")
             Thread.sleep(500)
@@ -28,13 +31,14 @@ object LocalServer {
         val connection = URL("${OpenCodeRuntime.BASE_URL}/api/pair").openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "POST"
-            connection.setRequestProperty("Authorization", Pairing.basicAuth(password))
+            val current = password() ?: throw IllegalStateException("OpenCode server stopped while signing in.")
+            connection.setRequestProperty("Authorization", Pairing.basicAuth(current))
             connection.connectTimeout = 2000
             connection.readTimeout = 5000
             val code = connection.responseCode
             val body = (if (code in 200..299) connection.inputStream else connection.errorStream)?.bufferedReader()?.readText().orEmpty()
             if (code !in 200..299) throw IllegalStateException("Sign-in to the local server failed (HTTP $code): $body")
-            return Pairing.connectUrl(OpenCodeRuntime.BASE_URL, Pairing.code(body))
+            return Pairing.connectUrl(OpenCodeRuntime.BASE_URL, Pairing.code(body)) to current
         } finally {
             connection.disconnect()
         }

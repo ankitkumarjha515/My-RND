@@ -6,11 +6,12 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
 import com.myrnd.opencode.core.ProotCommand
+import com.myrnd.opencode.core.ServerReadiness
 import com.myrnd.opencode.core.TarExtractor
 import java.io.File
+import java.io.RandomAccessFile
 import java.nio.file.Files
-import java.security.SecureRandom
-import java.util.Base64
+import java.util.Date
 
 /** Owns the on-device Linux: unpacking Alpine, first-run setup, and launching commands inside it through proot. */
 class OpenCodeRuntime(private val context: Context) {
@@ -19,8 +20,11 @@ class OpenCodeRuntime(private val context: Context) {
         const val BASE_URL = "http://127.0.0.1:$PORT"
         private const val OPENCODE = "/usr/local/bin/opencode"
         private const val SETUP_SCRIPT = "/.opencode/setup.sh"
-        private const val STORAGE = "/storage/emulated/0"
+        // Only this folder of shared storage is visible to the agent, never the whole phone.
+        private const val STORAGE_FOLDER = "/storage/emulated/0/OpenCode"
+        private const val PASSWORD_FILE = "/.opencode/server-password"
         private const val MAX_LOG_BYTES = 1_000_000L
+        private const val READY_TAIL_BYTES = 64 * 1024
     }
 
     private val files = context.filesDir
@@ -33,11 +37,9 @@ class OpenCodeRuntime(private val context: Context) {
     private val setupDone = File(state, "setup-done")
     val serverLog = File(files, "server.log")
 
-    val password: String by lazy {
-        val prefs = context.getSharedPreferences("opencode", Context.MODE_PRIVATE)
-        prefs.getString("server_password", null) ?: ByteArray(32).also { SecureRandom().nextBytes(it) }
-            .let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
-            .also { prefs.edit().putString("server_password", it).apply() }
+    init {
+        // Earlier builds kept one permanent password here; it now changes on every server start and lives in memory.
+        context.getSharedPreferences("opencode", Context.MODE_PRIVATE).edit().remove("server_password").apply()
     }
 
     fun isSetUp() = setupDone.exists()
@@ -71,15 +73,31 @@ class OpenCodeRuntime(private val context: Context) {
     }
 
     /** Starts `opencode serve` on loopback; its output is appended to [serverLog] so earlier crashes stay visible. */
-    fun startServer(): Process {
+    fun startServer(password: String): Process {
         prepareHost()
         prepareGuest()
         if (serverLog.length() > MAX_LOG_BYTES) serverLog.writeText(serverLogTail(200) + "\n")
-        serverLog.appendText("\n=== server start ${java.util.Date()} ===\n")
+        serverLog.appendText("\n${ServerReadiness.startMarker(Date().toString())}\n")
+        // Hand the password over in a private file the server reads and deletes, so it never appears on a command line.
+        File(rootfs, PASSWORD_FILE).apply {
+            writeText(password)
+            setReadable(false, false)
+            setReadable(true, true)
+        }
+        val serve = "$OPENCODE serve --hostname 127.0.0.1 --port $PORT"
         return process(
-            listOf(OPENCODE, "serve", "--hostname", "127.0.0.1", "--port", PORT.toString()),
-            mapOf("OPENCODE_PASSWORD" to password),
+            listOf("/bin/sh", "-c", "OPENCODE_PASSWORD=\"\$(cat $PASSWORD_FILE)\" && rm -f $PASSWORD_FILE && export OPENCODE_PASSWORD && exec $serve"),
         ).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.appendTo(serverLog)).start()
+    }
+
+    /** True once the server we started last reports it bound the port (see [ServerReadiness]). */
+    fun serverListening(): Boolean {
+        if (!serverLog.exists()) return false
+        val tail = RandomAccessFile(serverLog, "r").use { file ->
+            val start = maxOf(0L, file.length() - READY_TAIL_BYTES)
+            ByteArray((file.length() - start).toInt()).also { file.seek(start); file.readFully(it) }
+        }
+        return ServerReadiness.listening(String(tail), PORT)
     }
 
     fun serverLogTail(lines: Int = 40) =
@@ -108,7 +126,9 @@ class OpenCodeRuntime(private val context: Context) {
 
     private fun process(command: List<String>, extraEnv: Map<String, String> = emptyMap()): ProcessBuilder {
         val fakeProcBinds = ProotCommand.fakeProcBinds(File(state, "proc").path) { runCatching { File(it).readText() }.isSuccess }
-        val storageBinds = if (hasStorageAccess()) listOf(ProotCommand.Bind(STORAGE, "/sdcard")) else emptyList()
+        val storageBinds =
+            if (hasStorageAccess() && File(STORAGE_FOLDER).apply { mkdirs() }.isDirectory) listOf(ProotCommand.Bind(STORAGE_FOLDER, "/sdcard"))
+            else emptyList()
         val config = ProotCommand.Config(
             proot = File(nativeDir, "libproot.so").path,
             loader = File(nativeDir, "libproot-loader.so").path,

@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 # Downloads what the APK bundles: Termux's Android build of proot (plus its libraries) and the Alpine aarch64 rootfs.
+# Every file is checked against a hash pinned below, so a tampered mirror fails the build. When Termux publishes a new
+# proot the build fails here on purpose: review the new version, then update the hashes.
 set -euo pipefail
+
+declare -A pinned=(
+    [libproot.so]=bc3e5416748276374c513eaad1c6cabedc94246fdf2dd58fa6531374e481fa09
+    [libproot-loader.so]=1da54355333cca3fb6ee10e3b82a24df24fb230c99241ce83809bf9e240609b5
+    [libtalloc.so]=742b438c4d09e276985a61d44164c9de207b6d8cc268f3018cb3001961bcb309
+    [libandroid-shmem.so]=84475798e07c8174dbbfaec70a827fdb02f19ffa69a589380c13e7507fd0e731
+)
+alpine_version=3.24.3
+alpine_sha256=4d3f80afaebd447c5591a63a73bde380a149fe8b2d85488cafabb2ff97551f50
 cd "$(dirname "$0")/.."
 
 jni=app/src/main/jniLibs/arm64-v8a
@@ -55,15 +66,15 @@ cp -L "$work/libandroid-shmem/$prefix/lib/libandroid-shmem.so" "$jni/libandroid-
 check_needed "$jni/libproot.so"
 check_needed "$jni/libtalloc.so"
 check_needed "$jni/libandroid-shmem.so"
+for lib in "${!pinned[@]}"; do
+    if ! echo "${pinned[$lib]}  $jni/$lib" | sha256sum -c --quiet -; then
+        echo "$lib does not match its pinned hash (new Termux release or tampering); review it and update fetch-native.sh" >&2
+        exit 1
+    fi
+done
 
-alpine=https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/aarch64
-curl -fsSL "$alpine/latest-releases.yaml" -o "$work/releases.yaml"
-read -r file sha < <(awk '/flavor: alpine-minirootfs/ { found = 1 } found && / file:/ { file = $2 } found && / sha256:/ { print file, $2; exit }' "$work/releases.yaml")
-if [ -z "${file:-}" ] || [ -z "${sha:-}" ]; then
-    echo "Alpine minirootfs not found in latest-releases.yaml" >&2
-    exit 1
-fi
-curl -fsSL "$alpine/$file" -o "$assets/alpine-rootfs.bin"
-echo "$sha  $assets/alpine-rootfs.bin" | sha256sum -c -
+file=alpine-minirootfs-$alpine_version-aarch64.tar.gz
+curl -fsSL "https://dl-cdn.alpinelinux.org/alpine/v${alpine_version%.*}/releases/aarch64/$file" -o "$assets/alpine-rootfs.bin"
+echo "$alpine_sha256  $assets/alpine-rootfs.bin" | sha256sum -c -
 
 echo "Bundled: $(ls "$jni" | tr '\n' ' ')and $file"

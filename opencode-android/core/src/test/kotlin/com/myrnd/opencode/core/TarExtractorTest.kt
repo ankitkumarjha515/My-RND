@@ -90,6 +90,18 @@ class TarExtractorTest {
     }
 
     @Test
+    fun refusesToWriteThroughASymlinkedDirectory() {
+        val dest = tmp.newFolder("root")
+        val outside = tmp.newFolder("outside")
+        val input = archive {
+            link("etc", outside.absolutePath, TarConstants.LF_SYMLINK)
+            file("etc/passwd", "evil")
+        }
+        assertThrows(IllegalStateException::class.java) { TarExtractor.extractTarGz(input, dest) }
+        assertFalse(outside.resolve("passwd").exists())
+    }
+
+    @Test
     fun rejectsEntriesThatEscapeTheDestination() {
         val dest = tmp.newFolder("root")
         val input = archive { file("../evil", "x") }

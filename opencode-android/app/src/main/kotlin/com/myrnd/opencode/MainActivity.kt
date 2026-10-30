@@ -16,13 +16,15 @@ import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
-import com.myrnd.opencode.core.Pairing
 import com.myrnd.opencode.core.ResumeRecovery
+import com.myrnd.opencode.core.UrlPolicy
+import java.io.ByteArrayInputStream
 import kotlin.concurrent.thread
 
 /** Shows first-run setup progress, then OpenCode's own web UI served from the phone. */
@@ -44,6 +46,9 @@ class MainActivity : Activity() {
     private lateinit var log: TextView
     private val logLines = ArrayDeque<String>()
     private var starting = false
+
+    /** The server password the WebView's session was issued under; a different one means the server restarted. */
+    private var pairedPassword: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,7 +74,8 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         storage.visibility = if (runtime.hasStorageAccess()) View.GONE else View.VISIBLE
-        if (web.visibility == View.VISIBLE) thread {
+        if (web.visibility == View.VISIBLE && OpenCodeService.password != pairedPassword) start()
+        else if (web.visibility == View.VISIBLE) thread {
             val healthy = LocalServer.healthy()
             runOnUiThread { recoverPage(healthy) }
         }
@@ -104,20 +110,35 @@ class MainActivity : Activity() {
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.settings.allowFileAccess = false
+        web.settings.allowContentAccess = false
         web.webChromeClient = WebChromeClient()
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (request.url.host == "127.0.0.1") return false
+                val url = request.url
+                if (UrlPolicy.isOurServer(url.scheme, url.host, url.port, OpenCodeRuntime.PORT)) return false
+                if (!UrlPolicy.mayOpenExternally(url.scheme, url.host, request.hasGesture())) {
+                    Log.w(TAG, "Blocked navigation to $url")
+                    return true
+                }
                 try {
-                    startActivity(Intent(Intent.ACTION_VIEW, request.url))
+                    startActivity(Intent(Intent.ACTION_VIEW, url))
                 } catch (e: ActivityNotFoundException) {
-                    Log.w(TAG, "No app can open ${request.url}", e)
+                    Log.w(TAG, "No app can open $url", e)
                 }
                 return true
             }
 
+            // WebView cookies are shared by every port on 127.0.0.1, so requests to other local servers are refused.
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                val url = request.url
+                if (!UrlPolicy.isOtherLoopback(url.host, url.port, OpenCodeRuntime.PORT)) return null
+                Log.w(TAG, "Blocked request to another local server: $url")
+                return WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+            }
+
+            // Sign-in only happens through the pairing link; credentials are never typed into an auth prompt.
             override fun onReceivedHttpAuthRequest(view: WebView, handler: HttpAuthHandler, host: String, realm: String) {
-                if (host == "127.0.0.1") handler.proceed(Pairing.USERNAME, runtime.password) else handler.cancel()
+                handler.cancel()
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -156,11 +177,19 @@ class MainActivity : Activity() {
                 if (!runtime.isSetUp()) runtime.setUp(::appendLog)
                 runOnUiThread { status.text = "Starting OpenCode…" }
                 OpenCodeService.start(this)
-                LocalServer.waitAndPair(runtime.password, SERVER_START_TIMEOUT_MS) { OpenCodeService.gaveUp }
+                LocalServer.waitAndPair(
+                    password = { OpenCodeService.password },
+                    timeoutMs = SERVER_START_TIMEOUT_MS,
+                    ready = { OpenCodeService.serverAlive && runtime.serverListening() },
+                    failed = { OpenCodeService.gaveUp },
+                )
             }
             runOnUiThread {
                 starting = false
-                result.fold(::showWeb, ::showError)
+                result.fold({ (url, password) ->
+                    pairedPassword = password
+                    showWeb(url)
+                }, ::showError)
             }
         }
     }

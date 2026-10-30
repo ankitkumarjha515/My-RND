@@ -17,6 +17,15 @@ android {
         ndk { abiFilters += "arm64-v8a" }
     }
 
+    buildTypes {
+        // Not debuggable, so `adb run-as` cannot read the app's data. Signed with the CI's cached debug key
+        // until a real release key is added.
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

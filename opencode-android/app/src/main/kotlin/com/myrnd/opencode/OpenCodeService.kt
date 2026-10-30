@@ -10,6 +10,8 @@ import android.content.Intent
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
+import java.security.SecureRandom
+import java.util.Base64
 import kotlin.concurrent.thread
 
 /** Keeps the OpenCode server alive in the background, restarting it a few times if it crashes. */
@@ -24,6 +26,15 @@ class OpenCodeService : Service() {
         /** True once the server crashed [MAX_RESTARTS] times in a row; cleared on the next start. */
         @Volatile
         var gaveUp = false
+            private set
+
+        /** Password of the running server; a new one is made on every start, so old sessions stop working. */
+        @Volatile
+        var password: String? = null
+            private set
+
+        @Volatile
+        var serverAlive = false
             private set
 
         fun start(context: Context) {
@@ -72,10 +83,15 @@ class OpenCodeService : Service() {
         loop = thread(name = "opencode-server") {
             while (!stopping) {
                 val exit = runCatching {
-                    val started = runtime.startServer()
+                    val fresh = ByteArray(32).also { SecureRandom().nextBytes(it) }
+                        .let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
+                    val started = runtime.startServer(fresh)
+                    password = fresh
                     process = started
+                    serverAlive = true
                     started.waitFor()
                 }.onFailure { Log.e(TAG, "Could not start OpenCode server", it) }.getOrNull()
+                serverAlive = false
                 if (stopping) break
                 Log.w(TAG, "OpenCode server exited with code $exit")
                 runCatching { runtime.serverLog.appendText("=== server exited with code $exit ===\n") }
@@ -113,6 +129,8 @@ class OpenCodeService : Service() {
 
     override fun onDestroy() {
         stopping = true
+        serverAlive = false
+        password = null
         process?.destroy()
         wakeLock?.release()
         super.onDestroy()

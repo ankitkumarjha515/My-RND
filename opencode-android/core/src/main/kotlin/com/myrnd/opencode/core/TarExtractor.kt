@@ -43,9 +43,15 @@ object TarExtractor {
     }
 
     // Lexical check: canonicalFile would follow absolute symlinks already in the rootfs out to host paths.
+    // Parent directories must not be symlinks either, or writing "a/x" after "a -> /elsewhere" would escape.
     private fun inside(root: File, name: String): File {
         val target = root.toPath().resolve(name).normalize()
         if (!target.startsWith(root.toPath())) throw IllegalStateException("Archive entry escapes destination: $name")
+        var parent = target.parent
+        while (parent != null && parent != root.toPath()) {
+            if (Files.isSymbolicLink(parent)) throw IllegalStateException("Archive entry goes through a symlink: $name")
+            parent = parent.parent
+        }
         return target.toFile()
     }
 }
