@@ -1,0 +1,66 @@
+name: OpenCode Android APK
+
+on:
+  push:
+    paths:
+      - "opencode-android/**"
+      - ".github/workflows/opencode-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: opencode-android
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: opencode-android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+
+      # Reuse one debug signing key so each new APK installs over the previous one and keeps its data.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: opencode-android-debug-keystore-v1
+
+      - name: Fetch proot and Alpine rootfs
+        run: scripts/fetch-native.sh
+
+      - name: Test and build
+        run: gradle :core:test :app:assembleDebug --console=plain
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk opencode-android.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opencode-android-apk
+          path: opencode-android/opencode-android.apk
+
+      - name: Publish as the rolling pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view opencode-android-latest >/dev/null 2>&1; then
+            gh release delete opencode-android-latest --yes --cleanup-tag
+          fi
+          gh release create opencode-android-latest opencode-android.apk \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "OpenCode Android (latest build)" \
+            --notes "Built from $GITHUB_REF_NAME at $GITHUB_SHA. Install opencode-android.apk on an arm64 Android phone."
