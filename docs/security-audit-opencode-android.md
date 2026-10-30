@@ -1,6 +1,12 @@
 # Security audit: OpenCode Android (2026-10-30)
 
-Read-only review of `opencode-android/`, the CI workflow, and the OpenCode server's auth code. Nothing fixed yet.
+Read-only review of `opencode-android/`, the CI workflow, and the OpenCode server's auth code.
+
+## Status (fixed in commit 80db740)
+- Fixed: WebView port leak, port squatting, link launching, backups, debuggable build, password storage and rotation, command-line password, pinned downloads, CI action pins and permissions, release checksum, storage limited to `/sdcard/OpenCode`, tar symlink escape.
+- Not fixable in the app: proot is not a sandbox, agent network access, OpenCode's loopback CORS rule, agent reading the server password from its environment, targetSdk 28.
+- Needs the owner: a real signing key stored in GitHub Secrets.
+- Left as is: the wake lock (keeps agents running with the screen off) and remote images in the UI (blocking them may break OpenCode's UI).
 
 ## Top 3 to fix first
 1. WebView sends the password to any 127.0.0.1 port; limit it to port 4096 (`MainActivity.kt`).
