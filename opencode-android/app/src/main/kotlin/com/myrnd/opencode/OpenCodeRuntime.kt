@@ -109,7 +109,8 @@ class OpenCodeRuntime(private val context: Context) {
         val config = ProotCommand.Config(
             proot = File(nativeDir, "libproot.so").path,
             loader = File(nativeDir, "libproot-loader.so").path,
-            libraryDir = lib.path,
+            // libtalloc.so.2 is a symlink in lib; libandroid-shmem.so keeps its own name in the APK's library dir.
+            libraryDir = "${lib.path}:${nativeDir.path}",
             tmpDir = tmp.path,
             rootfs = rootfs.path,
             workdir = "/root/projects",

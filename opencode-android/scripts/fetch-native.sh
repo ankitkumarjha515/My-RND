@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Downloads what the APK bundles: Termux's Android build of proot (plus libtalloc) and the Alpine aarch64 rootfs.
+# Downloads what the APK bundles: Termux's Android build of proot (plus its libraries) and the Alpine aarch64 rootfs.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -30,7 +30,7 @@ check_needed() {
     local binary=$1 lib
     for lib in $(readelf -d "$binary" | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p'); do
         case $lib in
-            libtalloc.so.2 | libc.so | libdl.so | libm.so | liblog.so) ;;
+            libtalloc.so.2 | libandroid-shmem.so | libc.so | libdl.so | libm.so | liblog.so) ;;
             *)
                 echo "$binary needs $lib, which the APK does not bundle" >&2
                 exit 1
@@ -41,6 +41,7 @@ check_needed() {
 
 fetch_deb proot
 fetch_deb libtalloc
+fetch_deb libandroid-shmem
 prefix=data/data/com.termux/files/usr
 cp "$work/proot/$prefix/bin/proot" "$jni/libproot.so"
 cp "$work/proot/$prefix/libexec/proot/loader" "$jni/libproot-loader.so"
@@ -50,8 +51,10 @@ if [ ! -e "$work/libtalloc/$prefix/lib/libtalloc.so.2" ]; then
     exit 1
 fi
 cp -L "$work/libtalloc/$prefix/lib/libtalloc.so.2" "$jni/libtalloc.so"
+cp -L "$work/libandroid-shmem/$prefix/lib/libandroid-shmem.so" "$jni/libandroid-shmem.so"
 check_needed "$jni/libproot.so"
 check_needed "$jni/libtalloc.so"
+check_needed "$jni/libandroid-shmem.so"
 
 alpine=https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/aarch64
 curl -fsSL "$alpine/latest-releases.yaml" -o "$work/releases.yaml"
