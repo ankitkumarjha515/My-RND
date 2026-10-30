@@ -20,6 +20,7 @@ class OpenCodeRuntime(private val context: Context) {
         private const val OPENCODE = "/usr/local/bin/opencode"
         private const val SETUP_SCRIPT = "/.opencode/setup.sh"
         private const val STORAGE = "/storage/emulated/0"
+        private const val MAX_LOG_BYTES = 1_000_000L
     }
 
     private val files = context.filesDir
@@ -69,14 +70,16 @@ class OpenCodeRuntime(private val context: Context) {
         setupDone.createNewFile()
     }
 
-    /** Starts `opencode serve` on loopback; its output goes to [serverLog]. */
+    /** Starts `opencode serve` on loopback; its output is appended to [serverLog] so earlier crashes stay visible. */
     fun startServer(): Process {
         prepareHost()
         prepareGuest()
+        if (serverLog.length() > MAX_LOG_BYTES) serverLog.writeText(serverLogTail(200) + "\n")
+        serverLog.appendText("\n=== server start ${java.util.Date()} ===\n")
         return process(
             listOf(OPENCODE, "serve", "--hostname", "127.0.0.1", "--port", PORT.toString()),
             mapOf("OPENCODE_PASSWORD" to password),
-        ).redirectErrorStream(true).redirectOutput(serverLog).start()
+        ).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.appendTo(serverLog)).start()
     }
 
     fun serverLogTail(lines: Int = 40) =

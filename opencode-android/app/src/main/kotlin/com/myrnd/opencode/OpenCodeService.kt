@@ -78,6 +78,8 @@ class OpenCodeService : Service() {
                 }.onFailure { Log.e(TAG, "Could not start OpenCode server", it) }.getOrNull()
                 if (stopping) break
                 Log.w(TAG, "OpenCode server exited with code $exit")
+                runCatching { runtime.serverLog.appendText("=== server exited with code $exit ===\n") }
+                    .onFailure { Log.e(TAG, "Could not write to the server log", it) }
                 val now = System.currentTimeMillis()
                 crashes.addLast(now)
                 while (crashes.isNotEmpty() && now - crashes.first() > RESTART_WINDOW_MS) crashes.removeFirst()

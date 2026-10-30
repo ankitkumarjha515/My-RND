@@ -10,8 +10,11 @@ import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.HttpAuthHandler
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -19,6 +22,7 @@ import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import com.myrnd.opencode.core.Pairing
+import com.myrnd.opencode.core.ResumeRecovery
 import kotlin.concurrent.thread
 
 /** Shows first-run setup progress, then OpenCode's own web UI served from the phone. */
@@ -27,6 +31,7 @@ class MainActivity : Activity() {
         private const val TAG = "MainActivity"
         private const val SERVER_START_TIMEOUT_MS = 120_000L
         private const val LOG_LINES = 200
+        private const val PAGE_CHECK_TIMEOUT_MS = 3000L
     }
 
     private lateinit var runtime: OpenCodeRuntime
@@ -64,8 +69,30 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         storage.visibility = if (runtime.hasStorageAccess()) View.GONE else View.VISIBLE
-        // The server may have been stopped from the notification while the app was in the background.
-        if (web.visibility == View.VISIBLE) thread { if (!LocalServer.healthy()) runOnUiThread { start() } }
+        if (web.visibility == View.VISIBLE) thread {
+            val healthy = LocalServer.healthy()
+            runOnUiThread { recoverPage(healthy) }
+        }
+    }
+
+    // After time in the background the server may have been stopped (notification, Android) or the page left blank.
+    private fun recoverPage(serverHealthy: Boolean) {
+        var answered = false
+        val check = { text: String? ->
+            if (!answered) {
+                answered = true
+                val action = ResumeRecovery.decide(serverHealthy, text)
+                Log.i(TAG, "Resume check: server healthy=$serverHealthy, action=$action")
+                when (action) {
+                    ResumeRecovery.Action.RESTART -> start()
+                    ResumeRecovery.Action.RELOAD -> web.reload()
+                    ResumeRecovery.Action.NONE -> Unit
+                }
+            }
+        }
+        web.evaluateJavascript("document.body ? document.body.innerText : ''") { check(it) }
+        // A page that cannot run scripts never answers.
+        web.postDelayed({ check(null) }, PAGE_CHECK_TIMEOUT_MS)
     }
 
     @Deprecated("Deprecated in Java")
@@ -92,7 +119,31 @@ class MainActivity : Activity() {
             override fun onReceivedHttpAuthRequest(view: WebView, handler: HttpAuthHandler, host: String, realm: String) {
                 if (host == "127.0.0.1") handler.proceed(Pairing.USERNAME, runtime.password) else handler.cancel()
             }
+
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame) showError(IllegalStateException("The page failed to load: ${error.description}"))
+            }
+
+            // Android kills the page's renderer to free memory while the app is in the background. Without this the
+            // WebView stays blank (or the app crashes); a dead WebView cannot be reused, so swap in a new one.
+            override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                Log.w(TAG, "WebView renderer gone (crashed=${detail.didCrash()}); recreating it")
+                replaceWebView()
+                start()
+                return true
+            }
         }
+    }
+
+    private fun replaceWebView() {
+        val parent = web.parent as ViewGroup
+        val index = parent.indexOfChild(web)
+        val params = web.layoutParams
+        parent.removeView(web)
+        web.destroy()
+        web = WebView(this).apply { visibility = View.GONE }
+        parent.addView(web, index, params)
+        setUpWebView()
     }
 
     private fun start() {
