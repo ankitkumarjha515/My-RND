@@ -63,7 +63,7 @@ if [ -z "${file:-}" ] || [ -z "${sha:-}" ]; then
     echo "Alpine minirootfs not found in latest-releases.yaml" >&2
     exit 1
 fi
-curl -fsSL "$alpine/$file" -o "$assets/alpine-rootfs.tar.gz"
-echo "$sha  $assets/alpine-rootfs.tar.gz" | sha256sum -c -
+curl -fsSL "$alpine/$file" -o "$assets/alpine-rootfs.bin"
+echo "$sha  $assets/alpine-rootfs.bin" | sha256sum -c -
 
 echo "Bundled: $(ls "$jni" | tr '\n' ' ')and $file"

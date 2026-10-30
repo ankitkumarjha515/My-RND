@@ -56,7 +56,7 @@ class OpenCodeRuntime(private val context: Context) {
             log("Unpacking Linux…")
             rootfs.deleteRecursively()
             rootfs.mkdirs()
-            context.assets.open("alpine-rootfs.tar.gz").use { TarExtractor.extractTarGz(it, rootfs) }
+            context.assets.open("alpine-rootfs.bin").use { TarExtractor.extractTarGz(it, rootfs) }
             state.mkdirs()
             rootfsReady.createNewFile()
         }
