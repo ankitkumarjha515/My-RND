@@ -19,6 +19,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.version.outputs.app }}
+      opencode_version: ${{ steps.version.outputs.opencode }}
     defaults:
       run:
         working-directory: opencode-android
@@ -39,6 +42,12 @@ jobs:
         with:
           path: ~/.android/debug.keystore
           key: opencode-android-debug-keystore-v1
+
+      - name: Read versions
+        id: version
+        run: |
+          echo "app=$(sed -n 's/^appVersion=//p' version.properties)" >> "$GITHUB_OUTPUT"
+          echo "opencode=$(sed -n 's/^version=//p' app/src/main/assets/setup.sh)" >> "$GITHUB_OUTPUT"
 
       - name: Fetch proot and Alpine rootfs
         run: scripts/fetch-native.sh
@@ -72,17 +81,29 @@ jobs:
         with:
           name: opencode-android-apk
 
-      - name: Publish as the rolling pre-release
+      - name: Publish the versioned release and the rolling latest one
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          APP_VERSION: ${{ needs.build.outputs.app_version }}
+          OPENCODE_VERSION: ${{ needs.build.outputs.opencode_version }}
         run: |
           sha=$(sha256sum opencode-android.apk | cut -d ' ' -f 1)
+          title="OpenCode Android $APP_VERSION (OpenCode $OPENCODE_VERSION)"
+          notes="Build $GITHUB_RUN_NUMBER from $GITHUB_REF_NAME at $GITHUB_SHA. Changes: opencode-android/CHANGELOG.md. Install opencode-android.apk on an arm64 Android phone. SHA256: $sha"
+          tag="opencode-android-v$APP_VERSION"
+          # A rebuild of the same version replaces that release's APK.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" opencode-android.apk --clobber
+            gh release edit "$tag" --title "$title" --notes "$notes"
+          else
+            gh release create "$tag" opencode-android.apk --prerelease --target "$GITHUB_SHA" --title "$title" --notes "$notes"
+          fi
           if gh release view opencode-android-latest >/dev/null 2>&1; then
             gh release delete opencode-android-latest --yes --cleanup-tag
           fi
           gh release create opencode-android-latest opencode-android.apk \
             --prerelease \
             --target "$GITHUB_SHA" \
-            --title "OpenCode Android (latest build)" \
-            --notes "Built from $GITHUB_REF_NAME at $GITHUB_SHA. Install opencode-android.apk on an arm64 Android phone. SHA256: $sha"
+            --title "$title (latest build)" \
+            --notes "$notes"

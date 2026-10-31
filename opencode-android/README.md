@@ -17,6 +17,12 @@ On first launch the app downloads git, ripgrep, bash and OpenCode (~300 MB), so 
 - Not fixable here: proot is not a sandbox (the agent can read everything the app can), and the agent has full network access.
 - Audit: `../docs/security-audit-opencode-android.md`.
 
+## Versions
+- App version: `version.properties` (bump it for each change and add a `CHANGELOG.md` entry). OpenCode version: the pin in `setup.sh`.
+- Shown as `0.2.0 (OpenCode 2.2.2)` in the installer, on the start screen, and in the notification.
+- Each version gets its own GitHub release (`opencode-android-v<version>`); `opencode-android-latest` always holds the newest build.
+- The app icon is OpenCode's own Android icon from `packages/desktop/icons/prod/android` (MIT, see `licenses/OPENCODE-LICENSE.txt`).
+
 ## How it works
 - `app/.../MainActivity.kt`: setup screen, then the WebView. Signs in through OpenCode's pairing link (`/api/pair` → `/auth/connect/<code>`).
 - `app/.../OpenCodeService.kt`: foreground service that keeps the server running and restarts it after a crash (up to 3 times in 2 minutes).

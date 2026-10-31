@@ -61,6 +61,8 @@ class MainActivity : Activity() {
         actions = findViewById(R.id.actions)
         storage = findViewById(R.id.storage)
         log = findViewById(R.id.log)
+        findViewById<TextView>(R.id.version).text =
+            "App ${BuildConfig.APP_VERSION} (build ${BuildConfig.VERSION_CODE}) · OpenCode ${BuildConfig.OPENCODE_VERSION}"
         findViewById<Button>(R.id.retry).setOnClickListener { start() }
         findViewById<Button>(R.id.rerun_setup).setOnClickListener {
             runtime.resetSetup()

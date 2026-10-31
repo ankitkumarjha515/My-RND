@@ -120,7 +120,7 @@ class OpenCodeService : Service() {
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("OpenCode is running")
-            .setContentText("Local server on this phone")
+            .setContentText("OpenCode ${BuildConfig.OPENCODE_VERSION} · app ${BuildConfig.APP_VERSION}")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(Notification.Action.Builder(null, "Stop", stop).build())

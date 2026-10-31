@@ -1,7 +1,15 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+val appVersion = Properties().apply { rootProject.file("version.properties").inputStream().use { load(it) } }
+    .getProperty("appVersion") ?: error("appVersion missing from version.properties")
+val openCodeVersion = Regex("^version=(\\S+)$", RegexOption.MULTILINE)
+    .find(file("src/main/assets/setup.sh").readText())?.groupValues?.get(1)
+    ?: error("OpenCode version pin missing from setup.sh")
 
 android {
     namespace = "com.myrnd.opencode"
@@ -12,9 +20,16 @@ android {
         minSdk = 26
         // Like Termux, target API 28 so the bundled Linux userland may execute files from app storage.
         targetSdk = 28
+        // The build number only ever grows, so every CI build installs over the last one.
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
-        versionName = "0.1.$versionCode"
+        versionName = "$appVersion (OpenCode $openCodeVersion)"
+        buildConfigField("String", "APP_VERSION", "\"$appVersion\"")
+        buildConfigField("String", "OPENCODE_VERSION", "\"$openCodeVersion\"")
         ndk { abiFilters += "arm64-v8a" }
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
